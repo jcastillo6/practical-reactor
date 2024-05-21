@@ -7,6 +7,7 @@ import reactor.core.Scannable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.NonBlocking;
+import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 
@@ -48,7 +49,7 @@ public class c9_ExecutionControl extends ExecutionControlBase {
         long threadId = Thread.currentThread().getId();
         Flux<String> notifications = readNotifications()
                 .doOnNext(System.out::println)
-                //todo: change this line only
+                .delayElements(Duration.ofSeconds(1))
                 ;
 
         StepVerifier.create(notifications
@@ -77,8 +78,8 @@ public class c9_ExecutionControl extends ExecutionControlBase {
     public void ready_set_go() {
         //todo: feel free to change code as you need
         Flux<String> tasks = tasks()
-                .flatMap(Function.identity());
-        semaphore();
+            .concatMap(t -> t.delayUntil(s -> semaphore().next()))
+            .delaySubscription(semaphore());
 
         //don't change code below
         StepVerifier.create(tasks)
@@ -94,17 +95,18 @@ public class c9_ExecutionControl extends ExecutionControlBase {
      * Make task run on thread suited for short, non-blocking, parallelized work.
      * Answer:
      * - Which types of schedulers Reactor provides?
-     * - What is their purpose?
+         * - What is their purpose?
      * - What is their difference?
      */
     @Test
     public void non_blocking() {
+        Scheduler s = Schedulers.newParallel("parallel-scheduler", 4);
+
         Mono<Void> task = Mono.fromRunnable(() -> {
                                   Thread currentThread = Thread.currentThread();
                                   assert NonBlocking.class.isAssignableFrom(Thread.currentThread().getClass());
                                   System.out.println("Task executing on: " + currentThread.getName());
-                              })
-                              //todo: change this line only
+                              }).publishOn(s)
                               .then();
 
         StepVerifier.create(task)
@@ -121,7 +123,7 @@ public class c9_ExecutionControl extends ExecutionControlBase {
         BlockHound.install(); //don't change this line
 
         Mono<Void> task = Mono.fromRunnable(ExecutionControlBase::blockingCall)
-                              .subscribeOn(Schedulers.single())//todo: change this line only
+                              .subscribeOn(Schedulers.boundedElastic())//todo: change this line only
                               .then();
 
         StepVerifier.create(task)

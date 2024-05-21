@@ -34,7 +34,9 @@ public class c8_Sinks extends SinksBase {
     @Test
     public void single_shooter() {
         //todo: feel free to change code as you need
-        Mono<Boolean> operationCompleted = null;
+        Sinks.One<Boolean> sink = Sinks.one();
+        sink.tryEmitValue(true);
+        Mono<Boolean> operationCompleted = sink.asMono();
         submitOperation(() -> {
 
             doSomeWork(); //don't change this line
@@ -55,7 +57,13 @@ public class c8_Sinks extends SinksBase {
     @Test
     public void single_subscriber() {
         //todo: feel free to change code as you need
-        Flux<Integer> measurements = null;
+        Sinks.Many<Integer> sink = Sinks.many().unicast().onBackpressureBuffer();
+        sink.tryEmitNext(0x0800);
+        sink.tryEmitNext(0x0B64);
+        sink.tryEmitNext(0x0504);
+        sink.tryEmitComplete();
+
+        Flux<Integer> measurements = sink.asFlux();
         submitOperation(() -> {
 
             List<Integer> measures_readings = get_measures_readings(); //don't change this line
